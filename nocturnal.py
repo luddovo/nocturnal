@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import ephem
 from astropy.coordinates import SkyCoord
-from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.patches import Polygon, Arc
 import matplotlib.gridspec as gridspec
 import argparse
 
@@ -27,9 +27,13 @@ TIME_DOTS_RADIUS = 5.0  # cm
 
 CENTER_HOLE_RADIUS = 0.3 # cm
 
+ALIDADE_LENGTH = 10 # cm
+ALIDADE_WIDTH = 0.9 # cm
+
 # POSITIONING TWEEKS
 UPPER_X_OFFSET = 2.5
 LOWER_Y_OFFSET = 0.5
+ALIDADE_OFFSET = 2
 UPPER_PLOT_H = 17.0
 LOWER_PLOT_W = 15.0
 
@@ -100,14 +104,18 @@ for month, angle in zip(months, angles):
         y = radius * np.sin(offset_angle)
         ax1.text(x, y, month, ha='center', va='center', fontsize=12, fontweight='bold',
                 rotation=np.degrees(offset_angle) - 90, rotation_mode='anchor')
-    
-    dot_radius = MONTHS_DOTS_RADIUS * CM2IN  # Slightly smaller than the disk radius
-    for segment in angles:
-        offset = np.pi / 6 /3
-        for angle in [segment + offset, segment - offset]:
-            x = dot_radius * np.cos(angle)
-            y = dot_radius * np.sin(angle)
-            ax1.plot(x, y, 'o', color='black', markersize=3)
+
+    # Draw dots for days in the month
+    dot_radius = MONTHS_DOTS_RADIUS * CM2IN
+    dots_angles = np.linspace(0, -2 * np.pi, 72, endpoint=False)
+    boundary = 0
+    for angle in dots_angles:
+        x = dot_radius * np.cos(angle)
+        y = dot_radius * np.sin(angle)
+        markersize = 3 if boundary % 6 != 0 else 0
+        boundary += 1
+        ax1.plot(x, y, 'o', color='black', markersize=markersize)
+
 
 # Draw another disk just inside of the month names
 inner_circle = plt.Circle((0, 0), INNER_DISK_RADIUS * CM2IN, color='black', fill=False)
@@ -316,6 +324,38 @@ inner_circle.set_clip_on(False)
 # Draw a circle of 6mm diameter (3mm radius) in the middle with red outline
 center_circle = plt.Circle((0, 0), CENTER_HOLE_RADIUS * CM2IN, color='red', fill=False, linewidth=1)
 ax3.add_artist(center_circle)
+
+# DRAW THE ALHIDADE
+
+ax2.set_aspect('equal')
+
+cx = (A4_W - LOWER_PLOT_W) * CM2IN / 2
+ax2.set_xlim(-cx, cx)
+cy = (A4_H - UPPER_PLOT_H) * CM2IN / 2
+ax2.set_ylim(-cy + ALIDADE_OFFSET, cy + ALIDADE_OFFSET)
+
+ax2.axis('off')
+
+# Body of the alidade
+points = [(0, ALIDADE_WIDTH * CM2IN), (0, ALIDADE_WIDTH * CM2IN + ALIDADE_LENGTH * CM2IN),
+          (ALIDADE_WIDTH * CM2IN, ALIDADE_LENGTH * CM2IN), (ALIDADE_WIDTH * CM2IN, 0)]
+polygon = Polygon(points, closed=False, edgecolor='red', fill=False, linewidth=1)
+ax2.add_patch(polygon)
+
+# Base of the alidade
+center = (0, 0)  # Center of the circle
+radius = ALIDADE_WIDTH * CM2IN      # Radius of the circle
+theta_start = 90  # Starting angle of the arc in degrees
+theta_end = 360   # Ending angle of the arc in degrees
+
+# Add the arc to the plot
+arc = Arc(center, 2*radius, 2*radius, angle=0, theta1=theta_start, theta2=theta_end, color='red', linewidth=1)
+ax2.add_patch(arc)
+
+# Draw a circle of 6mm diameter (3mm radius) in the middle with red outline
+center_circle = plt.Circle((0, 0), CENTER_HOLE_RADIUS * CM2IN, color='red', fill=False, linewidth=1)
+ax2.add_artist(center_circle)
+
 
 # Save to SVG
 plt.savefig(args.output, format='svg', bbox_inches='tight')
